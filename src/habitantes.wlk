@@ -24,7 +24,7 @@ class Habitante {
 		lugarActual = destino
 	}
 	
-	method puedeHacer(tarea) = tarea.horasNecesarias(self) <= horasDisponibles
+	method tieneTiempoSuficiente(tarea) = tarea.horasNecesarias(self) <= horasDisponibles
 	
 	method realizar(tarea) = tarea.aplicar(self)
 	
@@ -46,7 +46,10 @@ class Habitante {
 				self.realizar(tarea)
 				tareasHechas++
 			}
-			catch e {}
+			catch e {
+				// La tarea no se pudo hacer por alguna razón. El "catch" es 
+				// para que el programa no rompa y se pueda continuar con la lista.
+			}
 		}
 	}
 }

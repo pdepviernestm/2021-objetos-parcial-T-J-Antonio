@@ -2,7 +2,7 @@ class Tarea {
 	method horasNecesarias(actor)
 	
 	method aplicar(actor) {
-		if (not actor.puedeHacer(self))
+		if (not actor.tieneTiempoSuficiente(self))
 			self.error("No hay suficientes horas disponibles")
 	}
 }

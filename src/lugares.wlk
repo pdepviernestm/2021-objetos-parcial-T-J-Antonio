@@ -17,6 +17,7 @@ class Lugar {
 	}
 }
 
+// No se definen propiedades de los lugares puesto que se definen en los senderos
 const casaJim = new Lugar()
 const casaClara = new Lugar()
 const mercado = new Lugar()
