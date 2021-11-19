@@ -1,0 +1,151 @@
+import lugares.*
+import habitantes.*
+import tareas.*
+import instrumentos.*
+
+describe "Los lugares" {
+	test "Un lugar se conecta a otro si existe un sendero hacia él" {
+		assert.that(casaJim.seConectaA(casaClara))
+	}
+	
+	test "Un lugar no se conecta a otro si no hay un sendero hacia él" {
+		assert.notThat(mercado.seConectaA(casaJim))
+	}
+	
+	test "Un habitante no puede viajar a un lugar si no hay conexiones a él" {
+		assert.throwsExceptionWithMessage(
+			"No hay conexiones a ese lugar", 
+			{ => aja.horasHasta(casaClara) }
+		)
+	}
+	
+	test "Al ir a un lugar vía sendero urbano, se tarda distancia / velocidadCiudad * tráfico, redondeado" {
+		assert.equals(jim.horasHasta(casaClara), 1)
+	}
+	
+	test "Al ir a un lugar vía sendero rural, se tarda distancia / velocidadCampo" {
+		assert.equals(aja.horasHasta(casaJim), 4)
+	}
+	
+	test "El lugar más cercano de alguien es aquel al que tarda menos en ir" {
+		assert.equals(clara.masCercano(), casaJim)
+		assert.equals(jim.masCercano(), casaClara)
+		assert.equals(aja.masCercano(), casaJim)
+	}
+}
+
+describe "Las tareas" {
+	test "Al ir a un lugar, el habitante cambia su lugar actual y pierde horas en el viaje" {
+		const irAlMercado = new IrAUnDestino(destino = mercado)
+		jim.realizar(irAlMercado)
+		assert.equals(jim.lugarActual(), mercado)
+		assert.equals(jim.horasDisponibles(), 3)
+	}
+	
+	test "La tarea ir al más cercano transporta al habitante al lugar más cercano y resta las horas correspondientes" {
+		jim.realizar(irAlMasCercano)
+		assert.equals(jim.lugarActual(), casaClara)
+		assert.equals(jim.horasDisponibles(), 6)
+	}
+	
+	test "Si un habitante no puede ir al lugar, la tarea falla" {
+		const irAlMuseo = new IrAUnDestino(destino = museo)
+		assert.throwsExceptionWithMessage(
+			"No hay conexiones a ese lugar", 
+			{ => aja.realizar(irAlMuseo) }
+		)
+		// No se puede viajar al mismo lugar en que se está
+	}
+	
+	test "Si un habitante no tiene suficientes horas, la tarea falla" {
+		const irAlMercado = new IrAUnDestino(destino = mercado)
+		assert.throwsExceptionWithMessage(
+			"No hay suficientes horas disponibles",
+			{ => clara.realizar(irAlMercado) }
+		)
+	}
+}
+
+describe "Instrumentos mágicos" {
+	test "No se puede usar un instrumento sobre alguien que está en otro lugar" {
+		const usarKairosectoEnClara = new UsarInstrumento(
+			instrumento = kairosecto, 
+			receptor = clara
+		)
+		assert.throwsExceptionWithMessage(
+			"El receptor está en otro lado",
+			{ => jim.realizar(usarKairosectoEnClara) }
+		)
+	}
+	
+	test "Al usar el kairosecto, el usuario pierde 1 hora y el receptor gana 3" {
+		const usarKairosectoEnClara = new UsarInstrumento(
+			instrumento = kairosecto, 
+			receptor = clara
+		)
+		const irALoDeClara = new IrAUnDestino(destino = casaClara)
+		jim.realizar(irALoDeClara)
+		jim.realizar(usarKairosectoEnClara)
+		assert.equals(jim.horasDisponibles(), 5)
+		assert.equals(clara.horasDisponibles(), 8)
+	}
+	
+	test "Al usar el báculo de sombras con cierto destino, se teletransporta al receptor, que no pierde horas, y el usuario pierde la mitad" {
+		const usarBaculoEnJimHaciaMuseo = new UsarInstrumento(
+			instrumento = new BaculoDeSombras(destino = museo), 
+			receptor = jim
+		)
+		aja.realizar(irAlMasCercano)
+		aja.realizar(usarBaculoEnJimHaciaMuseo)
+		assert.equals(aja.horasDisponibles(), 1)
+		assert.equals(jim.horasDisponibles(), 7)
+		assert.equals(aja.lugarActual(), casaJim)
+		assert.equals(jim.lugarActual(), museo)
+	}
+	
+	test "Se puede usar un objeto en sí mismo" {
+		const usarBaculoEnAjaHaciaLoDeClara = new UsarInstrumento(
+			instrumento = new BaculoDeSombras(destino = casaClara),
+			receptor = aja
+		)
+		aja.realizar(usarBaculoEnAjaHaciaLoDeClara)
+		assert.equals(aja.horasDisponibles(), 3)
+		assert.equals(aja.lugarActual(), casaClara)
+	}
+}
+
+describe "Tachando tareas de la lista" {
+	test "Al hacer un itinerario, la cantidad de tareas hechas se guarda en tareasHechas" {
+		const irAlMercado = new IrAUnDestino(destino = mercado)
+		const irAlMuseo = new IrAUnDestino(destino = museo)
+		const elViaje = new Itinerario(
+			listaTareas = [irAlMercado, irAlMuseo], 
+			encargados = #{jim}
+		)
+		elViaje.hacerItinerario()
+		assert.equals(jim.tareasHechas(), 2)
+	}
+	
+	test "Si alguien no puede hacer cierta tarea, no la suma, y no se produce su efecto" {
+		const usarKairosectoEnClara = new UsarInstrumento(instrumento = kairosecto, receptor = clara)
+		const kairosectizar = new Itinerario(listaTareas = [usarKairosectoEnClara], encargados = #{jim})
+		kairosectizar.hacerItinerario()
+		assert.equals(jim.tareasHechas(), 0)
+		assert.equals(clara.horasDisponibles(), 5)
+	}
+	
+	test "El más eficaz de los encargados es aquel que hizo más tareas" {
+		const usarKairosectoEnClara = new UsarInstrumento(instrumento = kairosecto, receptor = clara)
+		const irAlMercado = new IrAUnDestino(destino = mercado)
+		const laMision = new Itinerario(
+			listaTareas = [usarKairosectoEnClara, irAlMercado], 
+			encargados = #{jim, clara, aja}
+		)
+		laMision.hacerItinerario()
+		assert.equals(laMision.elMasEficaz(), clara)
+		// Para verificar el nro. de misiones de c/u:
+		assert.equals(clara.tareasHechas(), 2)
+		assert.equals(jim.tareasHechas(), 1)
+		assert.equals(aja.tareasHechas(), 0)
+	}
+}
